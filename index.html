@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кликер для Telegram Mini App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            overflow-y: auto;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #score {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #0088cc;
+        }
+
+        #clickButton {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: #0088cc;
+            color: white;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        #clickButton:hover {
+            background-color: #0077b3;
+        }
+
+        #clickButton:active {
+            transform: scale(0.95);
+        }
+
+        .click-effect {
+            position: absolute;
+            font-size: 24px;
+            color: #ffcc00;
+            pointer-events: none;
+            animation: float 0.5s ease-out forwards;
+        }
+
+        @keyframes float {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+
+        .shop, .inventory {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .shop h2, .inventory h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .shop-item button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .shop-item button:hover {
+            background-color: #218838;
+        }
+
+        .shop-item button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .inventory-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .inventory-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+
+        .inventory-list button {
+            background-color: #ffc107;
+            color: #333;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .inventory-list button:hover {
+            background-color: #e0a800;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            #score {
+                font-size: 28px;
+            }
+
+            #clickButton {
+                width: 120px;
+                height: 120px;
+                font-size: 16px;
+            }
+
+            .shop, .inventory {
+                padding: 10px;
+            }
+
+            .shop-item {
+                flex-direction: column;
+                text-align: left;
+            }
+
+            .shop-item button {
+                margin-top: 5px;
+            }
+
+            .inventory-list li {
+                flex-direction: column;
+                text-align: left;
+            }
+
+            .inventory-list button {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Кликер</h1>
+        <div id="score">Очки: 0</div>
+        <button id="clickButton">Клик!</button>
+        <div class="shop">
+            <h2>Магазин улучшений</h2>
+            <div id="shopItems"></div>
+        </div>
+        <div class="inventory">
+            <h2>Инвентарь</h2>
+            <ul id="inventoryList" class="inventory-list"></ul>
+        </div>
+    </div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        // Инициализация Telegram Web App
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+
+        let score = 0;
+        let clickPower = 1;
+        const scoreDisplay = document.getElementById('score');
+        const clickButton = document.getElementById('clickButton');
+        const shopItemsContainer = document.getElementById('shopItems');
+        const inventoryList = document.getElementById('inventoryList');
+
+        // Определение улучшений
+        const upgrades = [
+            { id: 1, name: 'Усилитель клика', cost: 10, power: 1 },
+            { id: 2, name: 'Супер клик', cost: 50, power: 5 },
+            { id: 3, name: 'Мега клик', cost: 100, power: 10 }
+        ];
+
+        // Определение возможных предметов
+        const items = [
+            { id: 1, name: 'Камень', description: 'Обычный камень' },
+            { id: 2, name: 'Дерево', description: 'Кусок дерева' },
+            { id: 3, name: 'Меч', description: 'Ржавый меч' }
+        ];
+
+        let inventory = [];
+
+        // Обновление отображения очков
+        function updateScore() {
+            scoreDisplay.textContent = `Очки: ${score}`;
+            updateShop();
+        }
+
+        // Создание анимации клика
+        function createClickEffect(x, y, text) {
+            const effect = document.createElement('div');
+            effect.className = 'click-effect';
+            effect.textContent = text;
+            effect.style.left = `${x}px`;
+            effect.style.top = `${y}px`;
+            document.body.appendChild(effect);
+
+            setTimeout(() => {
+                effect.remove();
+            }, 500);
+        }
+
+        // Обновление магазина
+        function updateShop() {
+            shopItemsContainer.innerHTML = '';
+            upgrades.forEach(upgrade => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'shop-item';
+                itemDiv.innerHTML = `
+                    <span>${upgrade.name} (+${upgrade.power} за клик) - ${upgrade.cost} очков</span>
+                    <button onclick="buyUpgrade(${upgrade.id})" ${score < upgrade.cost ? 'disabled' : ''}>Купить</button>
+                `;
+                shopItemsContainer.appendChild(itemDiv);
+            });
+        }
+
+        // Покупка улучшения
+        function buyUpgrade(upgradeId) {
+            const upgrade = upgrades.find(u => u.id === upgradeId);
+            if (score >= upgrade.cost) {
+                score -= upgrade.cost;
+                clickPower += upgrade.power;
+                inventory.push({ ...upgrade, type: 'upgrade' });
+                updateScore();
+                updateInventory();
+                window.Telegram.WebApp.sendData(JSON.stringify({ score, inventory }));
+            }
+        }
+
+        // Открытие подарка
+        function openGift(index) {
+            const gift = inventory[index];
+            if (gift.type === 'gift') {
+                const randomItem = items[Math.floor(Math.random() * items.length)];
+                inventory[index] = { ...randomItem, type: 'item' };
+                updateInventory();
+                window.Telegram.WebApp.sendData(JSON.stringify({ score, inventory }));
+            }
+        }
+
+        // Обновление инвентаря
+        function updateInventory() {
+            inventoryList.innerHTML = '';
+            inventory.forEach((item, index) => {
+                const li = document.createElement('li');
+                if (item.type === 'upgrade') {
+                    li.textContent = `${item.name} (+${item.power} за клик)`;
+                } else if (item.type === 'gift') {
+                    li.innerHTML = `Подарок <button onclick="openGift(${index})">Открыть</button>`;
+                } else if (item.type === 'item') {
+                    li.textContent = `${item.name} (${item.description})`;
+                }
+                inventoryList.appendChild(li);
+            });
+        }
+
+        // Обработка клика по кнопке
+        clickButton.addEventListener('click', (event) => {
+            score += clickPower;
+            const rect = clickButton.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            // Анимация для очков
+            createClickEffect(x, y, `+${clickPower}`);
+
+            // Шанс 10% на дроп подарка
+            if (Math.random() < 0.1) {
+                inventory.push({ type: 'gift', name: 'Подарок' });
+                createClickEffect(x, y - 50, 'Подарок!');
+                updateInventory();
+            }
+
+            updateScore();
+            window.Telegram.WebApp.sendData(JSON.stringify({ score, inventory }));
+        });
+
+        // Обработка темы Telegram
+        function applyTheme() {
+            const theme = window.Telegram.WebApp.colorScheme;
+            document.body.style.backgroundColor = theme === 'dark' ? '#222' : '#f0f2f5';
+            document.body.style.color = theme === 'dark' ? '#fff' : '#333';
+            document.querySelector('.shop').style.backgroundColor = theme === 'dark' ? '#333' : '#fff';
+            document.querySelector('.inventory').style.backgroundColor = theme === 'dark' ? '#333' : '#fff';
+        }
+
+        // Инициализация
+        applyTheme();
+        window.Telegram.WebApp.onEvent('themeChanged', applyTheme);
+        updateShop();
+        updateInventory();
+    </script>
+</body>
+</html>
